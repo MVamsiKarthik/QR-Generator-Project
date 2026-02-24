@@ -6,10 +6,13 @@ from flask import Flask, render_template, request
 import sqlite3
 import os
 from urllib.parse import urlparse, parse_qs
+from datetime import datetime
+from database import init_db
 
 app = Flask(__name__, static_folder='qr_codes', static_url_path='/qr_codes')
 
 DATABASE = "expo.db"
+init_db()
 
 
 # -----------------------------
@@ -29,7 +32,8 @@ def get_project_by_id(project_id):
                 project_description,
                 website_link,
                 video_link,
-                qr_path
+                qr_path,
+                expires_at
             FROM projects
             WHERE id = ?
             """,
@@ -60,7 +64,8 @@ def get_all_projects():
                 project_description,
                 website_link,
                 video_link,
-                qr_path
+                qr_path,
+                expires_at
             FROM projects
             """
         )
@@ -70,6 +75,17 @@ def get_all_projects():
     except Exception as e:
         print("Database Error:", e)
         return []
+
+
+def is_qr_expired(expires_at_text):
+    if not expires_at_text:
+        # Old records without expiry continue to work.
+        return False
+    try:
+        expires_at = datetime.fromisoformat(expires_at_text)
+        return datetime.utcnow() > expires_at
+    except ValueError:
+        return False
 
 
 def get_youtube_embed_url(url):
@@ -147,6 +163,10 @@ def index():
         project_data = get_project_by_id(project_id)
 
         if project_data:
+            expires_at = project_data[8]
+            if is_qr_expired(expires_at):
+                return render_template("qr_expired.html", project_title=project_data[3], expires_at=expires_at)
+
             website = project_data[5]
             description = project_data[4]
             video_link = project_data[6]
@@ -178,6 +198,7 @@ def index():
             "website": row[5],
             "description": row[4],
             "video_link": row[6],
+            "expires_at": row[8],
         })
 
     return render_template("projects_list.html", projects=projects)
