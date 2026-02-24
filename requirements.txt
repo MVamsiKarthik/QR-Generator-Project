@@ -2,3 +2,5 @@ streamlit
 qrcode
 pillow
 Flask
+pandas
+openpyxl
