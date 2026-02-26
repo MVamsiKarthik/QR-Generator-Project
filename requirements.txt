@@ -1,6 +1,7 @@
 streamlit
 qrcode
 pillow
-Flask
+flask
 pandas
 openpyxl
+gunicorn
