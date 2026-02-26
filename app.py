@@ -177,6 +177,16 @@ st.markdown(
 
 st.title("🎓 Expo Project Registration System")
 
+if "127.0.0.1" in QR_BASE_URL or "localhost" in QR_BASE_URL:
+    st.warning(
+        "QR links are using localhost. Other devices cannot open these links. "
+        "Set FLASK_BASE_URL to your LAN IP or set PUBLIC_BASE_URL for internet access."
+    )
+elif PUBLIC_BASE_URL:
+    st.success(f"QR links are public: {QR_BASE_URL}")
+else:
+    st.info(f"QR links work on same Wi-Fi/LAN: {QR_BASE_URL}")
+
 menu = st.sidebar.selectbox("Menu", ["Register Project", "Bulk Import", "View All Projects"])
 
 # ================= REGISTER PAGE =================

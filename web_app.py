@@ -111,24 +111,17 @@ def get_youtube_embed_url(url):
     if not video_id:
         return None
 
-    return (
-        f"https://www.youtube.com/embed/{video_id}"
-        f"?autoplay=1&mute=1&playsinline=1&rel=0&modestbranding=1"
-    )
+    return f"https://www.youtube.com/embed/{video_id}?rel=0&modestbranding=1"
 
 
-def get_video_context(video_link, website):
+def get_video_context(video_link):
     """
     Resolve best render strategy:
     - direct mp4/webm/ogg in <video>
     - YouTube in <iframe>
-    - fallback to website if that is a YouTube URL
+    - no fallback to website/repo link
     """
     candidate = (video_link or "").strip()
-    website = (website or "").strip()
-
-    if not candidate and website:
-        candidate = website
 
     youtube_embed = get_youtube_embed_url(candidate)
     if youtube_embed:
@@ -170,14 +163,12 @@ def index():
             website = project_data[5]
             description = project_data[4]
             video_link = project_data[6]
-            video = get_video_context(video_link, website)
+            video = get_video_context(video_link)
 
             return render_template(
                 "project_detail.html",
-                name=project_data[1],
-                roll=project_data[2],
                 project_title=project_data[3],
-                website=website,
+                live_video_link=(video_link or "").strip(),
                 description=description,
                 video_mode=video["video_mode"],
                 video_src=video["video_src"],
