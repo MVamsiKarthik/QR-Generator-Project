@@ -5,3 +5,4 @@ qr_codes/
 uploaded_videos/
 .vscode/
 app_settings.json
+expo.db
