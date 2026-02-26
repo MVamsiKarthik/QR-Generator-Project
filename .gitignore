@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+*.db
+qr_codes/
+uploaded_videos/
+.vscode/
+app_settings.json

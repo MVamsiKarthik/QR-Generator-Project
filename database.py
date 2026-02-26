@@ -1,9 +1,6 @@
 import sqlite3
 from datetime import datetime, timedelta
 
-
-QR_VALID_DAYS = 150
-
 def init_db():
     conn = sqlite3.connect("expo.db")
     c = conn.cursor()
@@ -34,11 +31,24 @@ def init_db():
     conn.close()
 
 
-def insert_project(name, roll, title, description, link, video, qr_path):
+def insert_project(
+    name,
+    roll,
+    title,
+    description,
+    link,
+    video,
+    qr_path,
+    expiry_enabled=True,
+    expiry_days=150,
+):
     conn = sqlite3.connect("expo.db")
     c = conn.cursor()
     now = datetime.utcnow()
-    expires = now + timedelta(days=QR_VALID_DAYS)
+    expires_text = None
+    if expiry_enabled:
+        expires = now + timedelta(days=max(1, int(expiry_days)))
+        expires_text = expires.isoformat(timespec="seconds")
 
     c.execute("""
         INSERT INTO projects 
@@ -53,7 +63,7 @@ def insert_project(name, roll, title, description, link, video, qr_path):
         video,
         qr_path,
         now.isoformat(timespec="seconds"),
-        expires.isoformat(timespec="seconds"),
+        expires_text,
     ))
 
     project_id = c.lastrowid
@@ -199,3 +209,16 @@ def get_all_projects():
 
     conn.close()
     return data
+
+
+def set_project_expiry(project_id, expiry_enabled=True, expiry_days=150):
+    conn = sqlite3.connect("expo.db")
+    c = conn.cursor()
+    expires_text = None
+    if expiry_enabled:
+        expires_text = (datetime.utcnow() + timedelta(days=max(1, int(expiry_days)))).isoformat(
+            timespec="seconds"
+        )
+    c.execute("UPDATE projects SET expires_at = ? WHERE id = ?", (expires_text, project_id))
+    conn.commit()
+    conn.close()

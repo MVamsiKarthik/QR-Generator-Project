@@ -2,16 +2,19 @@
 Flask web app to display project details from QR code scan.
 """
 
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, send_from_directory
 import sqlite3
 import os
 from urllib.parse import urlparse, parse_qs
 from datetime import datetime
 from database import init_db
+from settings_store import load_settings
+from utils.video_download import get_download_context
 
 app = Flask(__name__, static_folder='qr_codes', static_url_path='/qr_codes')
 
 DATABASE = "expo.db"
+UPLOADED_VIDEOS_DIR = os.path.join(app.root_path, "uploaded_videos")
 init_db()
 
 
@@ -77,7 +80,9 @@ def get_all_projects():
         return []
 
 
-def is_qr_expired(expires_at_text):
+def is_qr_expired(expires_at_text, settings):
+    if not settings.get("expiry_enabled", True):
+        return False
     if not expires_at_text:
         # Old records without expiry continue to work.
         return False
@@ -111,7 +116,10 @@ def get_youtube_embed_url(url):
     if not video_id:
         return None
 
-    return f"https://www.youtube.com/embed/{video_id}?rel=0&modestbranding=1"
+    return (
+        f"https://www.youtube.com/embed/{video_id}"
+        f"?autoplay=1&mute=1&playsinline=1&rel=0&modestbranding=1"
+    )
 
 
 def get_video_context(video_link):
@@ -143,11 +151,17 @@ def get_video_context(video_link):
     }
 
 
+@app.route("/uploaded_videos/<path:filename>")
+def uploaded_videos(filename):
+    return send_from_directory(UPLOADED_VIDEOS_DIR, filename, as_attachment=False)
+
+
 # -----------------------------
 # Main Route
 # -----------------------------
 @app.route("/")
 def index():
+    settings = load_settings()
     project_id = request.args.get("id")
 
     # If QR scanned (with ?id=)
@@ -157,13 +171,17 @@ def index():
 
         if project_data:
             expires_at = project_data[8]
-            if is_qr_expired(expires_at):
+            if is_qr_expired(expires_at, settings):
                 return render_template("qr_expired.html", project_title=project_data[3], expires_at=expires_at)
 
             website = project_data[5]
             description = project_data[4]
             video_link = project_data[6]
             video = get_video_context(video_link)
+            download = get_download_context(video_link)
+            font_scale = float(settings.get("font_scale", 1.0))
+            spacing_scale = float(settings.get("spacing_scale", 1.0))
+            video_fit = settings.get("video_fit", "contain")
 
             return render_template(
                 "project_detail.html",
@@ -172,6 +190,12 @@ def index():
                 description=description,
                 video_mode=video["video_mode"],
                 video_src=video["video_src"],
+                can_download=download["can_download"],
+                download_url=download["download_url"],
+                system_title="Project Registration System",
+                ui_font_scale=font_scale,
+                ui_spacing_scale=spacing_scale,
+                ui_video_fit=video_fit,
             )
         else:
             return render_template("project_not_found.html")
