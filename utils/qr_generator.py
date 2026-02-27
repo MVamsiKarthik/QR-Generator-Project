@@ -1,4 +1,5 @@
 import qrcode
+from qrcode.constants import ERROR_CORRECT_M
 import os
 from PIL import Image, ImageDraw, ImageFont
 
@@ -15,9 +16,10 @@ def generate_qr(data: str, filename: str, label: str = "") -> str:
     path = f"qr_codes/{filename}.png"
 
     qr = qrcode.QRCode(
-        version=1,
+        version=None,
+        error_correction=ERROR_CORRECT_M,
         box_size=10,
-        border=5
+        border=5,
     )
     qr.add_data(data)
     qr.make(fit=True)

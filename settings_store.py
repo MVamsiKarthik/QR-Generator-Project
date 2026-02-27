@@ -18,6 +18,7 @@ DEFAULT_SETTINGS = {
     "font_scale": 1.0,
     "spacing_scale": 1.0,
     "grid_columns": 6,
+    "qr_payload_mode": "url_only",
 }
 
 

@@ -60,6 +60,34 @@ def safe_filename(text):
     return cleaned.strip("_") or "project"
 
 
+def build_qr_payload(
+    qr_base_url,
+    project_id,
+    name,
+    roll,
+    project_title,
+    project_description,
+    video_link,
+    settings,
+):
+    url = f"{qr_base_url}/?id={project_id}"
+    mode = settings.get("qr_payload_mode", "url_only")
+    if mode != "url_with_text":
+        return url
+
+    lines = [
+        url,
+        f"Project: {project_title}",
+        f"Name: {name}",
+        f"Roll: {roll}",
+    ]
+    if project_description:
+        lines.append(f"Description: {project_description}")
+    if video_link:
+        lines.append(f"Video: {video_link}")
+    return "\n".join(lines)
+
+
 def is_valid_image_path(path_value):
     path = clean_text(path_value)
     if not path or path.lower() == "path":
@@ -149,7 +177,17 @@ def create_project_and_qr(
     unique_url = f"{qr_base_url}/?id={project_id}"
     file_name = safe_filename(f"{roll}_{name}_{project_title}_{project_id}")
     qr_label = f"{name} | {roll}"
-    qr_path = generate_qr(unique_url, file_name, label=qr_label)
+    payload = build_qr_payload(
+        qr_base_url,
+        project_id,
+        name,
+        roll,
+        project_title,
+        project_description,
+        video_link,
+        settings,
+    )
+    qr_path = generate_qr(payload, file_name, label=qr_label)
     set_qr_path(project_id, qr_path)
     return project_id, unique_url, qr_path
 
@@ -160,15 +198,26 @@ def regenerate_qr_for_row(row, qr_base_url, settings, force=False):
     name = clean_text(row[1])
     roll = clean_text(row[2])
     project_title = clean_text(row[3])
+    project_description = clean_text(row[4] if len(row) > 4 else "")
+    video_link = clean_text(row[6] if len(row) > 6 else "")
     qr_path = clean_text(row[7] if len(row) > 7 else "")
 
     if is_valid_image_path(qr_path) and not force:
         return False
 
-    unique_url = f"{qr_base_url}/?id={project_id}"
     file_name = safe_filename(f"{roll}_{name}_{project_title}_{project_id}")
     qr_label = f"{name} | {roll}"
-    new_path = generate_qr(unique_url, file_name, label=qr_label)
+    payload = build_qr_payload(
+        qr_base_url,
+        project_id,
+        name,
+        roll,
+        project_title,
+        project_description,
+        video_link,
+        settings,
+    )
+    new_path = generate_qr(payload, file_name, label=qr_label)
     set_qr_path(project_id, new_path)
     set_project_expiry(
         project_id,
@@ -300,6 +349,12 @@ def show_admin_settings(settings, qr_base_url):
             "Auto-update all stored QR URLs when base URL changes",
             value=settings.get("auto_update_qr_urls", True),
         )
+        qr_payload_mode = st.radio(
+            "QR payload mode",
+            ["url_only", "url_with_text"],
+            index=0 if settings.get("qr_payload_mode", "url_only") == "url_only" else 1,
+            format_func=lambda value: "URL only" if value == "url_only" else "URL + Full Data",
+        )
 
         st.subheader("Validity")
         expiry_enabled = st.checkbox("Enable QR expiry", value=settings.get("expiry_enabled", True))
@@ -352,6 +407,7 @@ def show_admin_settings(settings, qr_base_url):
             "public_base_url": clean_text(public_base_url).rstrip("/"),
             "manual_qr_base_url": clean_text(manual_qr_base_url).rstrip("/"),
             "auto_update_qr_urls": auto_update_qr_urls,
+            "qr_payload_mode": qr_payload_mode,
             "expiry_enabled": expiry_enabled,
             "expiry_days": int(expiry_days),
             "video_fit": video_fit,

@@ -93,7 +93,7 @@ def is_qr_expired(expires_at_text, settings):
         return False
 
 
-def get_youtube_embed_url(url):
+def get_youtube_embed_url(url, origin=None):
     """Return YouTube embed URL if *url* is YouTube, else None."""
     if not url:
         return None
@@ -116,13 +116,14 @@ def get_youtube_embed_url(url):
     if not video_id:
         return None
 
-    return (
-        f"https://www.youtube.com/embed/{video_id}"
-        f"?autoplay=1&mute=1&playsinline=1&rel=0&modestbranding=1"
-    )
+    base = f"https://www.youtube-nocookie.com/embed/{video_id}"
+    params = "autoplay=1&mute=1&playsinline=1&rel=0&modestbranding=1"
+    if origin:
+        params += f"&origin={origin}"
+    return f"{base}?{params}"
 
 
-def get_video_context(video_link):
+def get_video_context(video_link, origin=None):
     """
     Resolve best render strategy:
     - direct mp4/webm/ogg in <video>
@@ -131,7 +132,7 @@ def get_video_context(video_link):
     """
     candidate = (video_link or "").strip()
 
-    youtube_embed = get_youtube_embed_url(candidate)
+    youtube_embed = get_youtube_embed_url(candidate, origin=origin)
     if youtube_embed:
         return {
             "video_mode": "youtube",
@@ -163,6 +164,7 @@ def uploaded_videos(filename):
 def index():
     settings = load_settings()
     project_id = request.args.get("id")
+    origin = request.host_url.rstrip("/")
 
     # If QR scanned (with ?id=)
     if project_id:
@@ -177,7 +179,7 @@ def index():
             website = project_data[5]
             description = project_data[4]
             video_link = project_data[6]
-            video = get_video_context(video_link)
+            video = get_video_context(video_link, origin=origin)
             download = get_download_context(video_link)
             font_scale = float(settings.get("font_scale", 1.0))
             spacing_scale = float(settings.get("spacing_scale", 1.0))
